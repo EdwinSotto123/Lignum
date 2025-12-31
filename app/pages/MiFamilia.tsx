@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FamilyMember } from '../AppShell';
+import { auth, db } from '../../services/firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 interface MiFamiliaProps {
     familyMembers: FamilyMember[];
@@ -24,68 +26,95 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
     const [filterDate, setFilterDate] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Mock legacy repository data
-    const legacyItems: LegacyItem[] = [
-        {
-            id: '1',
-            type: 'cuento',
-            title: 'El Secreto del Árbol Mágico',
-            preview: 'Había una vez, en un pueblo muy lejano, un árbol tan grande que sus ramas tocaban las nubes...',
-            author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
-            date: 'Hace 2 días',
-            likes: 12,
-            image: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&h=300&fit=crop'
-        },
-        {
-            id: '2',
-            type: 'receta',
-            title: 'Ceviche de la Abuela Rosa',
-            preview: 'El secreto está en el limón fresco y el ají limo. Nunca uses limón de botella...',
-            author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
-            date: 'Hace 1 semana',
-            likes: 28,
-            image: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=400&h=300&fit=crop'
-        },
-        {
-            id: '3',
-            type: 'sabiduria',
-            title: 'Sobre tomar decisiones difíciles',
-            preview: 'Cuando tengas que elegir entre dos caminos, pregúntate: ¿Cuál me dará paz?...',
-            author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
-            date: 'Hace 3 días',
-            likes: 45
-        },
-        {
-            id: '4',
-            type: 'historia',
-            title: 'El día que conocí a tu abuela',
-            preview: 'Fue en la fiesta de San Juan, yo tenía 19 años. Ella llevaba un vestido azul con flores blancas...',
-            author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
-            date: 'Hace 5 días',
-            likes: 34,
-            image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=300&fit=crop'
-        },
-        {
-            id: '5',
-            type: 'receta',
-            title: 'Arroz con Pollo Dominical',
-            preview: 'El arroz verde que hacía los domingos. El secreto es licuar el cilantro con espinaca...',
-            author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
-            date: 'Hace 1 mes',
-            likes: 56,
-            image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop'
-        },
-        {
-            id: '6',
-            type: 'cuento',
-            title: 'La Princesa del Río',
-            preview: 'En las aguas cristalinas del río Amazonas, vivía una princesa que podía hablar con los peces...',
-            author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
-            date: 'Hace 2 semanas',
-            likes: 18,
-            image: 'https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=400&h=300&fit=crop'
+    const [loadingRepository, setLoadingRepository] = useState(false);
+    const [legacyItems, setLegacyItems] = useState<LegacyItem[]>([]);
+
+    useEffect(() => {
+        const fetchRepositoryData = async () => {
+            if (!auth.currentUser) return;
+            setLoadingRepository(true);
+            try {
+                const userId = auth.currentUser.uid;
+                const items: LegacyItem[] = [];
+
+                // 1. Fetch Stories
+                const storiesRef = collection(db, `users/${userId}/stories`);
+                const storiesSnapshot = await getDocs(query(storiesRef, orderBy('createdAt', 'desc')));
+                storiesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({
+                        id: doc.id,
+                        type: 'cuento',
+                        title: data.title || 'Cuento sin título',
+                        preview: data.organizedStory?.substring(0, 150) + '...' || 'Sin vista previa',
+                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0], // Assuming current user is Parent/Creator for now
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        likes: Math.floor(Math.random() * 20) + 1, // Mock likes for now
+                        image: data.scenes?.[0]?.imageUrl || undefined
+                    });
+                });
+
+                // 2. Fetch Recipes
+                const recipesRef = collection(db, `users/${userId}/recipes`);
+                const recipesSnapshot = await getDocs(query(recipesRef, orderBy('createdAt', 'desc')));
+                recipesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({
+                        id: doc.id,
+                        type: 'receta',
+                        title: data.title || 'Receta sin título',
+                        preview: data.description?.substring(0, 150) + '...' || 'Sin descripción',
+                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        likes: Math.floor(Math.random() * 20) + 1
+                    });
+                });
+
+                // 3. Fetch Wisdom
+                const wisdomRef = collection(db, `users/${userId}/wisdom`);
+                const wisdomSnapshot = await getDocs(query(wisdomRef, orderBy('createdAt', 'desc')));
+                wisdomSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({
+                        id: doc.id,
+                        type: 'sabiduria',
+                        title: data.topic || 'Sabiduría compartida',
+                        preview: data.scenarios?.join(' ')?.substring(0, 150) + '...' || 'Sin contenido',
+                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        likes: Math.floor(Math.random() * 20) + 1
+                    });
+                });
+
+                // 4. Fetch Daily Entries (Historias)
+                const dailyRef = collection(db, `users/${userId}/daily_entries`);
+                const dailySnapshot = await getDocs(query(dailyRef, orderBy('timestamp', 'desc')));
+                dailySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({
+                        id: doc.id,
+                        type: 'historia',
+                        title: data.highlight || 'Historia del día',
+                        preview: data.summary || 'Sin resumen',
+                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
+                        date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        likes: Math.floor(Math.random() * 20) + 1
+                    });
+                });
+
+                // Sort combined items by date (mock sort for mixed types as date string format varies, ideally use timestamps)
+                setLegacyItems(items);
+            } catch (error) {
+                console.error("Error fetching repository:", error);
+            } finally {
+                setLoadingRepository(false);
+            }
+        };
+
+        if (activeTab === 'repositorio') {
+            fetchRepositoryData();
         }
-    ];
+    }, [activeTab]);
 
     const getTypeIcon = (type: string) => {
         switch (type) {
