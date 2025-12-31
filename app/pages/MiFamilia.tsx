@@ -6,6 +6,7 @@ import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 interface MiFamiliaProps {
     familyMembers: FamilyMember[];
     onSelectMember: (member: FamilyMember) => void;
+    onNavigate?: (page: string, data?: any) => void;
 }
 
 interface LegacyItem {
@@ -17,9 +18,10 @@ interface LegacyItem {
     date: string;
     likes: number;
     image?: string;
+    fullData?: any;
 }
 
-const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) => {
+const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember, onNavigate }) => {
     const [activeTab, setActiveTab] = useState<'familia' | 'repositorio'>('familia');
     const [filterType, setFilterType] = useState<'all' | 'cuento' | 'receta' | 'sabiduria' | 'historia'>('all');
     const [filterMember, setFilterMember] = useState<string>('all');
@@ -39,7 +41,21 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
             date: 'Hace 2 días',
             likes: 12,
-            image: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&h=300&fit=crop'
+            image: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&h=300&fit=crop',
+            fullData: {
+                id: 'mock-1',
+                title: 'El Secreto del Árbol Mágico',
+                category: 'cuento',
+                rawTranscript: 'Había una vez un árbol mágico...',
+                scenes: [
+                    {
+                        sceneNumber: 1,
+                        narrationText: 'Había una vez, en un pueblo muy lejano, un árbol tan grande que sus ramas tocaban las nubes...',
+                        visualPrompt: 'Big magical tree reaching clouds',
+                        imageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&h=300&fit=crop'
+                    }
+                ]
+            }
         },
         {
             id: 'mock-2',
@@ -49,7 +65,19 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
             date: 'Hace 1 semana',
             likes: 28,
-            image: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=400&h=300&fit=crop'
+            image: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=400&h=300&fit=crop',
+            fullData: {
+                id: 'mock-2',
+                title: 'Ceviche de la Abuela Rosa',
+                type: 'cocina',
+                category: 'Entrada',
+                categoryEmoji: '🥗',
+                items: ['Pescado fresco', 'Limón', 'Cebolla', 'Ají Limo'],
+                steps: ['Cortar pescado', 'Exprimir limones', 'Mezclar con cebolla y ají'],
+                description: 'El secreto está en el limón fresco y el ají limo. Nunca uses limón de botella...',
+                difficulty: 'medium',
+                time: '30 min'
+            }
         },
         {
             id: 'mock-3',
@@ -58,7 +86,15 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             preview: 'Cuando tengas que elegir entre dos caminos, pregúntate: ¿Cuál me dará paz?...',
             author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
             date: 'Hace 3 días',
-            likes: 45
+            likes: 45,
+            fullData: {
+                id: 'mock-3',
+                quote: 'Cuando tengas que elegir entre dos caminos, pregúntate: ¿Cuál me dará paz?',
+                lesson: 'La paz es el mejor indicador de una decisión correcta.',
+                tags: ['decisiones', 'vida', 'paz'],
+                category: 'vida',
+                categoryEmoji: '🌱'
+            }
         },
         {
             id: 'mock-4',
@@ -68,7 +104,15 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
             date: 'Hace 5 días',
             likes: 34,
-            image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=300&fit=crop'
+            image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=300&fit=crop',
+            fullData: {
+                id: 'mock-4',
+                moodEmoji: '🥰',
+                summary: 'El día que conocí a tu abuela en la fiesta de San Juan.',
+                highlight: 'El día que conocí a tu abuela',
+                tags: ['amor', 'recuerdo', 'familia'],
+                date: 'Hace 5 días'
+            }
         },
         {
             id: 'mock-5',
@@ -78,7 +122,8 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
             date: 'Hace 1 mes',
             likes: 56,
-            image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop'
+            image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop',
+            fullData: { id: 'mock-5', type: 'cocina', title: 'Arroz con Pollo', categoryEmoji: '🍲', difficulty: 'hard' }
         },
         {
             id: 'mock-6',
@@ -88,9 +133,60 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
             date: 'Hace 2 semanas',
             likes: 18,
-            image: 'https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=400&h=300&fit=crop'
+            image: 'https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=400&h=300&fit=crop',
+            fullData: { id: 'mock-6', title: 'La Princesa del Río', category: 'cuento' }
         }
     ];
+
+    const handleItemClick = (item: LegacyItem) => {
+        if (!onNavigate) return;
+
+        console.log("Navigating to item:", item.title, item.type);
+
+        switch (item.type) {
+            case 'cuento':
+                onNavigate('cuentacuentos', item.fullData || {
+                    id: item.id,
+                    title: item.title,
+                    rawTranscript: item.preview,
+                    scenes: item.image ? [{ imageUrl: item.image, narrationText: item.preview }] : []
+                });
+                break;
+            case 'receta':
+                onNavigate('crear-receta', item.fullData || {
+                    id: item.id,
+                    title: item.title,
+                    description: item.preview,
+                    type: 'cocina',
+                    categoryEmoji: '🍳',
+                    category: 'Receta',
+                    items: [],
+                    steps: [item.preview],
+                    difficulty: 'medium',
+                    time: '??'
+                });
+                break;
+            case 'sabiduria':
+                onNavigate('crear-sabiduria', item.fullData || {
+                    id: item.id,
+                    quote: item.title,
+                    lesson: item.preview,
+                    tags: [],
+                    categoryEmoji: '💡'
+                });
+                break;
+            case 'historia':
+                onNavigate('grabacion-diaria', item.fullData || {
+                    id: item.id,
+                    summary: item.preview,
+                    highlight: item.title,
+                    moodEmoji: '📅',
+                    tags: [],
+                    date: item.date
+                });
+                break;
+        }
+    };
 
     useEffect(() => {
         let unsubscribe: () => void;
@@ -141,7 +237,8 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             author: currentUserAuthor,
                             date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
                             likes: Math.floor(Math.random() * 20) + 1,
-                            image: data.scenes?.[0]?.imageUrl || data.characterImageUrl || undefined
+                            image: data.scenes?.[0]?.imageUrl || data.characterImageUrl || undefined,
+                            fullData: { id: doc.id, ...data }
                         });
                     });
                 } catch (e) {
@@ -165,7 +262,8 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             preview: data.description?.substring(0, 150) + '...' || 'Sin descripción',
                             author: currentUserAuthor,
                             date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                            likes: Math.floor(Math.random() * 20) + 1
+                            likes: Math.floor(Math.random() * 20) + 1,
+                            fullData: { id: doc.id, ...data }
                         });
                     });
                 } catch (e) {
@@ -189,7 +287,8 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             preview: data.scenarios?.join(' ')?.substring(0, 150) + '...' || 'Sin contenido',
                             author: currentUserAuthor,
                             date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                            likes: Math.floor(Math.random() * 20) + 1
+                            likes: Math.floor(Math.random() * 20) + 1,
+                            fullData: { id: doc.id, ...data }
                         });
                     });
                 } catch (e) {
@@ -213,7 +312,8 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             preview: data.summary || 'Sin resumen',
                             author: currentUserAuthor,
                             date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                            likes: Math.floor(Math.random() * 20) + 1
+                            likes: Math.floor(Math.random() * 20) + 1,
+                            fullData: { id: doc.id, ...data }
                         });
                     });
                 } catch (e) {
@@ -560,6 +660,7 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             {filteredItems.map((item) => (
                                 <div
                                     key={item.id}
+                                    onClick={() => handleItemClick(item)}
                                     className="group rounded-2xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 overflow-hidden hover:border-canopy-500/30 transition-all hover:scale-[1.02] cursor-pointer"
                                 >
                                     {/* Image */}
@@ -608,10 +709,16 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
 
                                     {/* Action Buttons */}
                                     <div className="px-5 pb-5 pt-0 flex gap-2">
-                                        <button className="flex-1 py-2 rounded-lg bg-white/5 text-gray-300 text-sm hover:bg-white/10 transition-colors">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+                                            className="flex-1 py-2 rounded-lg bg-white/5 text-gray-300 text-sm hover:bg-white/10 transition-colors"
+                                        >
                                             📖 Leer
                                         </button>
-                                        <button className="flex-1 py-2 rounded-lg bg-canopy-500/20 text-canopy-400 text-sm hover:bg-canopy-500/30 transition-colors">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+                                            className="flex-1 py-2 rounded-lg bg-canopy-500/20 text-canopy-400 text-sm hover:bg-canopy-500/30 transition-colors"
+                                        >
                                             🎙️ Escuchar
                                         </button>
                                     </div>
