@@ -17,6 +17,25 @@ interface LegacyItem {
     date: string;
     likes: number;
     image?: string;
+import React, { useState, useEffect } from 'react';
+import { FamilyMember } from '../AppShell';
+import { auth, db } from '../../services/firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+
+interface MiFamiliaProps {
+    familyMembers: FamilyMember[];
+    onSelectMember: (member: FamilyMember) => void;
+}
+
+interface LegacyItem {
+    id: string;
+    type: 'cuento' | 'receta' | 'sabiduria' | 'historia';
+    title: string;
+    preview: string;
+    author: FamilyMember;
+    date: string;
+    likes: number;
+    image?: string;
 }
 
 const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) => {
@@ -29,27 +48,106 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
     const [loadingRepository, setLoadingRepository] = useState(false);
     const [legacyItems, setLegacyItems] = useState<LegacyItem[]>([]);
 
+    // Restore Mock Data for Demonstration
+    const mockLegacyItems: LegacyItem[] = [
+        {
+            id: 'mock-1',
+            type: 'cuento',
+            title: 'El Secreto del Árbol Mágico',
+            preview: 'Había una vez, en un pueblo muy lejano, un árbol tan grande que sus ramas tocaban las nubes...',
+            author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
+            date: 'Hace 2 días',
+            likes: 12,
+            image: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&h=300&fit=crop'
+        },
+        {
+            id: 'mock-2',
+            type: 'receta',
+            title: 'Ceviche de la Abuela Rosa',
+            preview: 'El secreto está en el limón fresco y el ají limo. Nunca uses limón de botella...',
+            author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
+            date: 'Hace 1 semana',
+            likes: 28,
+            image: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=400&h=300&fit=crop'
+        },
+        {
+            id: 'mock-3',
+            type: 'sabiduria',
+            title: 'Sobre tomar decisiones difíciles',
+            preview: 'Cuando tengas que elegir entre dos caminos, pregúntate: ¿Cuál me dará paz?...',
+            author: familyMembers.find(m => m.relation === 'Abuela') || familyMembers[0],
+            date: 'Hace 3 días',
+            likes: 45
+        },
+        {
+            id: 'mock-4',
+            type: 'historia',
+            title: 'El día que conocí a tu abuela',
+            preview: 'Fue en la fiesta de San Juan, yo tenía 19 años. Ella llevaba un vestido azul con flores blancas...',
+            author: familyMembers.find(m => m.relation === 'Abuelo') || familyMembers[0],
+            date: 'Hace 5 días',
+            likes: 34,
+            image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=300&fit=crop'
+        },
+        {
+            id: 'mock-5',
+            type: 'receta',
+            title: 'Arroz con Pollo Dominical',
+            preview: 'El arroz verde que hacía los domingos. El secreto es licuar el cilantro con espinaca...',
+            author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
+            date: 'Hace 1 mes',
+            likes: 56,
+            image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop'
+        },
+        {
+            id: 'mock-6',
+            type: 'cuento',
+            title: 'La Princesa del Río',
+            preview: 'En las aguas cristalinas del río Amazonas, vivía una princesa que podía hablar con los peces...',
+            author: familyMembers.find(m => m.relation === 'Madre') || familyMembers[0],
+            date: 'Hace 2 semanas',
+            likes: 18,
+            image: 'https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=400&h=300&fit=crop'
+        }
+    ];
+
     useEffect(() => {
         const fetchRepositoryData = async () => {
-            if (!auth.currentUser) return;
+            if (!auth.currentUser) {
+                setLegacyItems(mockLegacyItems);
+                return;
+            }
+
             setLoadingRepository(true);
             try {
                 const userId = auth.currentUser.uid;
-                const items: LegacyItem[] = [];
+                const realItems: LegacyItem[] = [];
+
+                // Create a "You" author profile for the real items
+                const currentUserAuthor: FamilyMember = {
+                    id: 'current-user',
+                    name: 'Tú', // Force "Tú" name for better identification
+                    relation: 'Creador', // Visible relation
+                    avatar: auth.currentUser.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+                    isVoiceCloned: true,
+                    storiesCount: 0,
+                    recipesCount: 0,
+                    wisdomCount: 0
+                };
 
                 // 1. Fetch Stories
                 const storiesRef = collection(db, `users/${userId}/stories`);
                 const storiesSnapshot = await getDocs(query(storiesRef, orderBy('createdAt', 'desc')));
                 storiesSnapshot.forEach(doc => {
                     const data = doc.data();
-                    items.push({
+                    realItems.push({
                         id: doc.id,
                         type: 'cuento',
                         title: data.title || 'Cuento sin título',
                         preview: data.organizedStory?.substring(0, 150) + '...' || 'Sin vista previa',
-                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0], // Assuming current user is Parent/Creator for now
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
-                        likes: Math.floor(Math.random() * 20) + 1, // Mock likes for now
+                        author: currentUserAuthor,
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
+                        likes: Math.floor(Math.random() * 20) + 1,
                         image: data.scenes?.[0]?.imageUrl || undefined
                     });
                 });
@@ -59,13 +157,13 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                 const recipesSnapshot = await getDocs(query(recipesRef, orderBy('createdAt', 'desc')));
                 recipesSnapshot.forEach(doc => {
                     const data = doc.data();
-                    items.push({
+                    realItems.push({
                         id: doc.id,
                         type: 'receta',
                         title: data.title || 'Receta sin título',
                         preview: data.description?.substring(0, 150) + '...' || 'Sin descripción',
-                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        author: currentUserAuthor,
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
                         likes: Math.floor(Math.random() * 20) + 1
                     });
                 });
@@ -75,37 +173,42 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                 const wisdomSnapshot = await getDocs(query(wisdomRef, orderBy('createdAt', 'desc')));
                 wisdomSnapshot.forEach(doc => {
                     const data = doc.data();
-                    items.push({
+                    realItems.push({
                         id: doc.id,
                         type: 'sabiduria',
                         title: data.topic || 'Sabiduría compartida',
                         preview: data.scenarios?.join(' ')?.substring(0, 150) + '...' || 'Sin contenido',
-                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        author: currentUserAuthor,
+                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
                         likes: Math.floor(Math.random() * 20) + 1
                     });
                 });
 
                 // 4. Fetch Daily Entries (Historias)
                 const dailyRef = collection(db, `users/${userId}/daily_entries`);
+                // Note: 'timestamp' might be used instead of 'createdAt' for daily entries
                 const dailySnapshot = await getDocs(query(dailyRef, orderBy('timestamp', 'desc')));
                 dailySnapshot.forEach(doc => {
                     const data = doc.data();
-                    items.push({
+                    realItems.push({
                         id: doc.id,
                         type: 'historia',
                         title: data.highlight || 'Historia del día',
                         preview: data.summary || 'Sin resumen',
-                        author: familyMembers.find(m => m.relation === 'Padre') || familyMembers[0],
-                        date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Fecha desconocida',
+                        author: currentUserAuthor,
+                        date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Reciente',
                         likes: Math.floor(Math.random() * 20) + 1
                     });
                 });
 
-                // Sort combined items by date (mock sort for mixed types as date string format varies, ideally use timestamps)
-                setLegacyItems(items);
+                // Combine Mock + Real items
+                // We put real items first
+                setLegacyItems([...realItems, ...mockLegacyItems]);
+
             } catch (error) {
                 console.error("Error fetching repository:", error);
+                // Even on error, show mock items so it's not empty
+                setLegacyItems(mockLegacyItems);
             } finally {
                 setLoadingRepository(false);
             }
@@ -135,6 +238,9 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
             default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
         }
     };
+
+    // Extract unique authors from the items actually displayed for the filter
+    const availableAuthors = Array.from(new Map(legacyItems.map(item => [item.author.id, item.author])).values());
 
     // Apply all filters
     const filteredItems = legacyItems.filter(item => {
@@ -336,16 +442,16 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                                 {/* Spacer */}
                                 <div className="flex-1" />
 
-                                {/* Family Member Filter */}
+                                {/* Family Member Filter (Dynamic based on available authors) */}
                                 <select
                                     value={filterMember}
                                     onChange={(e) => setFilterMember(e.target.value)}
                                     className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm focus:outline-none focus:border-canopy-500/50 cursor-pointer"
                                 >
-                                    <option value="all">👤 Todos los familiares</option>
-                                    {familyMembers.map((member) => (
-                                        <option key={member.id} value={member.id}>
-                                            {member.name} ({member.relation})
+                                    <option value="all">👤 Todos</option>
+                                    {availableAuthors.map((author) => (
+                                        <option key={author.id} value={author.id}>
+                                            {author.name}
                                         </option>
                                     ))}
                                 </select>
@@ -376,7 +482,7 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                                     )}
                                     {filterMember !== 'all' && (
                                         <span className="px-2 py-1 rounded-lg bg-legacy-500/20 text-legacy-400 text-xs flex items-center gap-1">
-                                            {familyMembers.find(m => m.id === filterMember)?.name}
+                                            {availableAuthors.find(m => m.id === filterMember)?.name || 'Miembro'}
                                             <button onClick={() => setFilterMember('all')} className="hover:text-white">×</button>
                                         </span>
                                     )}
