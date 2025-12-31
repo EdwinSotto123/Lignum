@@ -229,7 +229,7 @@ const VoiceCloning: React.FC<VoiceCloningProps> = ({ onComplete }) => {
         setIsPlayingDemo(true);
         try {
             const randomText = demoTexts[Math.floor(Math.random() * demoTexts.length)];
-            const audioBlob = await textToSpeech(existingVoice.elevenLabsVoiceId, randomText);
+            const audioBlob = await textToSpeech(randomText, existingVoice.elevenLabsVoiceId);
 
             if (audioBlob) {
                 const url = URL.createObjectURL(audioBlob);

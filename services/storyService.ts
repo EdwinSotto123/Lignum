@@ -348,7 +348,7 @@ export async function generateStoryAudio(
 
         // 2. Generate Audio
         console.log(`🗣️ Generating audio with voice: ${voice.name} (${voice.elevenLabsVoiceId})`);
-        const audioBlob = await textToSpeech(voice.elevenLabsVoiceId, text);
+        const audioBlob = await textToSpeech(text, voice.elevenLabsVoiceId);
 
         if (!audioBlob) {
             throw new Error("Failed to generate audio from ElevenLabs");

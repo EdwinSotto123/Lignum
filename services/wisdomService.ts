@@ -327,7 +327,7 @@ export async function generateWisdomAudio(
         if (!voice || !voice.elevenLabsVoiceId) return undefined;
 
         // 2. Generate Audio
-        const audioBlob = await textToSpeech(voice.elevenLabsVoiceId, text);
+        const audioBlob = await textToSpeech(text, voice.elevenLabsVoiceId);
         if (!audioBlob) throw new Error("Failed to generate audio");
 
         // 3. Upload

@@ -277,7 +277,7 @@ export async function generateRecipeAudio(
 
         // 2. Generate Audio (Limit text length if needed, ElevenLabs has limits)
         const safeText = text.slice(0, 5000); // Safety cap
-        const audioBlob = await textToSpeech(voice.elevenLabsVoiceId, safeText);
+        const audioBlob = await textToSpeech(safeText, voice.elevenLabsVoiceId);
         if (!audioBlob) throw new Error("Failed to generate audio");
 
         // 3. Upload
