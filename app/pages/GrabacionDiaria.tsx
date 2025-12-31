@@ -5,6 +5,7 @@ import { auth } from '../../services/firebase';
 
 interface GrabacionDiariaProps {
     onBack: () => void;
+    initialItem?: DailyEntry;
 }
 
 interface Message {
@@ -12,7 +13,7 @@ interface Message {
     content: string;
 }
 
-const GrabacionDiaria: React.FC<GrabacionDiariaProps> = ({ onBack }) => {
+const GrabacionDiaria: React.FC<GrabacionDiariaProps> = ({ onBack, initialItem }) => {
     const [step, setStep] = useState<'prompt' | 'recording' | 'processing' | 'saved'>('prompt');
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentTranscript, setCurrentTranscript] = useState('');
@@ -33,6 +34,14 @@ const GrabacionDiaria: React.FC<GrabacionDiariaProps> = ({ onBack }) => {
     const sessionRef = useRef<GeminiLiveStorySession | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Handle initial item
+    useEffect(() => {
+        if (initialItem) {
+            setProcessedEntry(initialItem);
+            setStep('saved');
+        }
+    }, [initialItem]);
 
     // Load streak and history
     useEffect(() => {

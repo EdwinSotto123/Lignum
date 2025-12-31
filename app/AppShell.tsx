@@ -39,6 +39,7 @@ export interface FamilyMember {
 
 const AppShell: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<AppPage>('mi-legado');
+    const [pageData, setPageData] = useState<any>(null); // Store data to pass between pages
     const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -91,41 +92,46 @@ const AppShell: React.FC = () => {
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop'
     });
 
+    const handleNavigate = (page: AppPage, data?: any) => {
+        setCurrentPage(page);
+        setPageData(data || null);
+    };
+
     const handleSelectMember = (member: FamilyMember) => {
         setSelectedMember(member);
-        setCurrentPage('chat-familiar');
+        handleNavigate('chat-familiar');
     };
 
     const renderPage = () => {
         switch (currentPage) {
             case 'voice-cloning':
-                return <VoiceCloning onComplete={() => setCurrentPage('mi-legado')} />;
+                return <VoiceCloning onComplete={() => handleNavigate('mi-legado')} />;
             case 'mi-legado':
-                return <MiLegado onNavigate={setCurrentPage} />;
+                return <MiLegado onNavigate={handleNavigate} />;
             case 'mi-familia':
-                return <MiFamilia familyMembers={familyMembers} onSelectMember={handleSelectMember} />;
+                return <MiFamilia familyMembers={familyMembers} onSelectMember={handleSelectMember} onNavigate={handleNavigate} />;
             case 'crear-historia':
-                return <CrearHistoria onBack={() => setCurrentPage('mi-legado')} />;
+                return <CrearHistoria onBack={() => handleNavigate('mi-legado')} />;
             case 'crear-sabiduria':
-                return <CrearSabiduria onBack={() => setCurrentPage('mi-legado')} />;
+                return <CrearSabiduria onBack={() => handleNavigate('mi-legado')} initialItem={pageData} />;
             case 'crear-receta':
-                return <CrearReceta onBack={() => setCurrentPage('mi-legado')} />;
+                return <CrearReceta onBack={() => handleNavigate('mi-legado')} initialItem={pageData} />;
             case 'grabacion-diaria':
-                return <GrabacionDiaria onBack={() => setCurrentPage('mi-legado')} />;
+                return <GrabacionDiaria onBack={() => handleNavigate('mi-legado')} initialItem={pageData} />;
             case 'chat-familiar':
                 return selectedMember ? (
-                    <ChatFamiliar member={selectedMember} onBack={() => setCurrentPage('mi-familia')} />
+                    <ChatFamiliar member={selectedMember} onBack={() => handleNavigate('mi-familia')} />
                 ) : (
-                    <MiFamilia familyMembers={familyMembers} onSelectMember={handleSelectMember} />
+                    <MiFamilia familyMembers={familyMembers} onSelectMember={handleSelectMember} onNavigate={handleNavigate} />
                 );
             case 'cuentacuentos':
-                return <Cuentacuentos onBack={() => setCurrentPage('mi-legado')} />;
+                return <Cuentacuentos onBack={() => handleNavigate('mi-legado')} initialItem={pageData} />;
             case 'mensajes-futuro':
-                return <MensajesFuturo onBack={() => setCurrentPage('mi-legado')} />;
+                return <MensajesFuturo onBack={() => handleNavigate('mi-legado')} />;
             case 'settings':
-                return <Settings onBack={() => setCurrentPage('mi-legado')} />;
+                return <Settings onBack={() => handleNavigate('mi-legado')} />;
             default:
-                return <MiLegado onNavigate={setCurrentPage} />;
+                return <MiLegado onNavigate={handleNavigate} />;
         }
     };
 
@@ -133,7 +139,7 @@ const AppShell: React.FC = () => {
         <div className="min-h-screen bg-roots-950 text-white flex">
             <Sidebar
                 currentPage={currentPage}
-                onNavigate={setCurrentPage}
+                onNavigate={handleNavigate}
                 collapsed={sidebarCollapsed}
                 onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
                 currentUser={currentUser}

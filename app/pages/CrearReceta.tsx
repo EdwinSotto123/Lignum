@@ -5,6 +5,7 @@ import { auth } from '../../services/firebase';
 
 interface CrearRecetaProps {
     onBack: () => void;
+    initialItem?: RecipeItem;
 }
 
 interface Message {
@@ -12,7 +13,7 @@ interface Message {
     content: string;
 }
 
-const CrearReceta: React.FC<CrearRecetaProps> = ({ onBack }) => {
+const CrearReceta: React.FC<CrearRecetaProps> = ({ onBack, initialItem }) => {
     const [step, setStep] = useState<'type' | 'interview' | 'processing' | 'complete' | 'history'>('type');
     const [selectedCategory, setSelectedCategory] = useState<typeof RECIPE_CATEGORIES[0] | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -35,6 +36,14 @@ const CrearReceta: React.FC<CrearRecetaProps> = ({ onBack }) => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, currentTranscript, userTranscript]);
+
+    // Handle initial item
+    useEffect(() => {
+        if (initialItem) {
+            setProcessedRecipe(initialItem);
+            setStep('complete');
+        }
+    }, [initialItem]);
 
     // Load history
     useEffect(() => {

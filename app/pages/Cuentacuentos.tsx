@@ -6,6 +6,7 @@ import DrawingCanvas, { CanvasRef, DrawingTool, BrushType } from '../components/
 
 interface CuentacuentosProps {
     onBack: () => void;
+    initialItem?: Story;
 }
 
 interface StoryPage {
@@ -23,7 +24,7 @@ interface Character {
     imageUrl?: string;
 }
 
-const Cuentacuentos: React.FC<CuentacuentosProps> = ({ onBack }) => {
+const Cuentacuentos: React.FC<CuentacuentosProps> = ({ onBack, initialItem }) => {
     const [step, setStep] = useState<'intro' | 'details' | 'kids' | 'recording' | 'processing' | 'editing' | 'preview' | 'viewer'>('intro');
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
@@ -81,6 +82,13 @@ const Cuentacuentos: React.FC<CuentacuentosProps> = ({ onBack }) => {
         };
         fetchStories();
     }, []);
+
+    // Handle initial item from navigation
+    useEffect(() => {
+        if (initialItem) {
+            openStoryViewer(initialItem);
+        }
+    }, [initialItem]);
 
     // Recording timer
     useEffect(() => {

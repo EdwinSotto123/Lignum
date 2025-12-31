@@ -5,6 +5,7 @@ import { auth } from '../../services/firebase';
 
 interface CrearSabiduriaProps {
     onBack: () => void;
+    initialItem?: Wisdom;
 }
 
 interface Message {
@@ -12,7 +13,7 @@ interface Message {
     content: string;
 }
 
-const CrearSabiduria: React.FC<CrearSabiduriaProps> = ({ onBack }) => {
+const CrearSabiduria: React.FC<CrearSabiduriaProps> = ({ onBack, initialItem }) => {
     const [step, setStep] = useState<'select' | 'interview' | 'processing' | 'complete' | 'history'>('select');
     const [selectedTopic, setSelectedTopic] = useState<typeof WISDOM_TOPICS[0] | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -35,6 +36,14 @@ const CrearSabiduria: React.FC<CrearSabiduriaProps> = ({ onBack }) => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, currentTranscript, userTranscript]);
+
+    // Handle initial item
+    useEffect(() => {
+        if (initialItem) {
+            setProcessedWisdom(initialItem);
+            setStep('complete');
+        }
+    }, [initialItem]);
 
     // Load user wisdom
     useEffect(() => {
