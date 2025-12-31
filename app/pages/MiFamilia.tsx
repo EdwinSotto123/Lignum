@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FamilyMember } from '../AppShell';
 import { auth, db } from '../../services/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 
 interface MiFamiliaProps {
     familyMembers: FamilyMember[];
@@ -121,14 +121,18 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
 
                 // 1. Fetch Stories
                 try {
-                    const storiesRef = collection(db, `users/${userId}/stories`);
-                    console.log(`📂 [MiFamilia] Querying stories at: users/${userId}/stories`);
-                    const storiesSnapshot = await getDocs(query(storiesRef, orderBy('createdAt', 'desc')));
+                    // Use ROOT collection query
+                    const storiesRef = collection(db, 'stories');
+                    console.log(`📂 [MiFamilia] Querying stories at: stories (where userId == ${userId})`);
+                    // Note: If this fails with "requires an index", remove orderBy or create index
+                    // Removing orderBy for now to ensure data fetching first
+                    const q = query(storiesRef, where('userId', '==', userId));
+                    const storiesSnapshot = await getDocs(q);
                     console.log(`✅ [MiFamilia] Found ${storiesSnapshot.size} stories`);
 
                     storiesSnapshot.forEach(doc => {
                         const data = doc.data();
-                        console.log("  - Story:", data.title); // Log each story title found
+                        console.log("  - Story:", data.title);
                         items.push({
                             id: doc.id,
                             type: 'cuento',
@@ -146,10 +150,10 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
 
                 // 2. Fetch Recipes
                 try {
-                    const recipesRef = collection(db, `users/${userId}/recipes`);
-                    console.log(`📂 [MiFamilia] Querying recipes at: users/${userId}/recipes`);
-                    // Removing orderBy temporarily to check if it's an index issue
-                    const recipesSnapshot = await getDocs(query(recipesRef));
+                    const recipesRef = collection(db, 'recipes');
+                    console.log(`📂 [MiFamilia] Querying recipes at: recipes (where userId == ${userId})`);
+                    const q = query(recipesRef, where('userId', '==', userId));
+                    const recipesSnapshot = await getDocs(q);
                     console.log(`✅ [MiFamilia] Found ${recipesSnapshot.size} recipes`);
 
                     recipesSnapshot.forEach(doc => {
@@ -170,9 +174,10 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
 
                 // 3. Fetch Wisdom
                 try {
-                    const wisdomRef = collection(db, `users/${userId}/wisdom`);
-                    console.log(`📂 [MiFamilia] Querying wisdom at: users/${userId}/wisdom`);
-                    const wisdomSnapshot = await getDocs(query(wisdomRef));
+                    const wisdomRef = collection(db, 'wisdom');
+                    console.log(`📂 [MiFamilia] Querying wisdom at: wisdom (where userId == ${userId})`);
+                    const q = query(wisdomRef, where('userId', '==', userId));
+                    const wisdomSnapshot = await getDocs(q);
                     console.log(`✅ [MiFamilia] Found ${wisdomSnapshot.size} wisdom entries`);
 
                     wisdomSnapshot.forEach(doc => {
@@ -191,11 +196,12 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                     console.error("❌ [MiFamilia] Error fetching wisdom:", e);
                 }
 
-                // 4. Fetch Daily Reflections (CORRECTED COLLECTION NAME)
+                // 4. Fetch Daily Reflections
                 try {
-                    const dailyRef = collection(db, `users/${userId}/daily_reflections`); // Fixed: daily_entries -> daily_reflections
-                    console.log(`📂 [MiFamilia] Querying daily reflections at: users/${userId}/daily_reflections`);
-                    const dailySnapshot = await getDocs(query(dailyRef));
+                    const dailyRef = collection(db, 'daily_reflections');
+                    console.log(`📂 [MiFamilia] Querying daily reflections at: daily_reflections (where userId == ${userId})`);
+                    const q = query(dailyRef, where('userId', '==', userId));
+                    const dailySnapshot = await getDocs(q);
                     console.log(`✅ [MiFamilia] Found ${dailySnapshot.size} daily reflections`);
 
                     dailySnapshot.forEach(doc => {
