@@ -17,10 +17,7 @@ interface LegacyItem {
     date: string;
     likes: number;
     image?: string;
-import React, { useState, useEffect } from 'react';
-import { FamilyMember } from '../AppShell';
-import { auth, db } from '../../services/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+}
 
 interface MiFamiliaProps {
     familyMembers: FamilyMember[];
