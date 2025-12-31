@@ -1,0 +1,7 @@
+{
+  "name": "Cuentos Mágicos con IA",
+  "description": "Una aplicación interactiva donde los niños dibujan personajes y la IA crea historias educativas para aprender números.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
