@@ -237,7 +237,7 @@ export async function createDailyEntryFromInterview(
     const processed = await processDailyReflectionWithGemini(rawTranscript);
 
     // 4. Update
-    await saveDailyEntry(userId, { id: entryId, ...processed });
+    await saveDailyEntry(userId, { id: entryId, ...processed } as any);
 
     return {
         id: entryId,
