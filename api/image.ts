@@ -20,22 +20,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log('🎨 Generating image for:', prompt.substring(0, 50) + '...');
 
-        // Call Gemini image generation API
+        // Use Imagen 3 API for image generation
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-generation:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/imagen-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{
-                        parts: [{
-                            text: `Create a beautiful children's book illustration in a warm, Pixar-like 3D style. 
+                        prompt: `Create a beautiful children's book illustration in a warm, Pixar-like 3D style. 
 The image should be colorful, inviting, and magical. High quality, detailed.
 Scene to illustrate: ${prompt}`
-                        }]
                     }],
-                    generationConfig: {
-                        responseModalities: ["TEXT", "IMAGE"]
+                    parameters: {
+                        sampleCount: 1,
+                        aspectRatio: "16:9",
+                        personGeneration: "allow_adult",
+                        safetyFilterLevel: "block_only_high"
                     }
                 })
             }
@@ -43,9 +44,44 @@ Scene to illustrate: ${prompt}`
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Gemini Image API error:', errorText);
+            console.error('Imagen API error:', errorText);
 
-            // Return fallback image URL
+            // Try fallback to Gemini Flash with image generation
+            try {
+                const geminiResponse = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `Generate an image: A beautiful children's book illustration in Pixar-like 3D style. ${prompt}`
+                                }]
+                            }],
+                            generationConfig: {
+                                responseModalities: ["IMAGE"]
+                            }
+                        })
+                    }
+                );
+
+                if (geminiResponse.ok) {
+                    const geminiData = await geminiResponse.json();
+                    const parts = geminiData.candidates?.[0]?.content?.parts || [];
+                    for (const part of parts) {
+                        if (part.inlineData?.mimeType?.startsWith('image/')) {
+                            const base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                            console.log('✅ Image generated via Gemini Flash');
+                            return res.status(200).json({ imageUrl: base64Image });
+                        }
+                    }
+                }
+            } catch (geminiError) {
+                console.error('Gemini fallback failed:', geminiError);
+            }
+
+            // Return Picsum fallback
             const seed = prompt.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
             return res.status(200).json({
                 imageUrl: `https://picsum.photos/seed/${seed}/1920/1080`,
@@ -54,12 +90,13 @@ Scene to illustrate: ${prompt}`
         }
 
         const data = await response.json();
-        const parts = data.candidates?.[0]?.content?.parts || [];
 
-        // Find image part
-        for (const part of parts) {
-            if (part.inlineData?.mimeType?.startsWith('image/')) {
-                const base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        // Imagen 3 returns predictions array with bytesBase64Encoded
+        if (data.predictions && data.predictions.length > 0) {
+            const imageData = data.predictions[0].bytesBase64Encoded;
+            if (imageData) {
+                const base64Image = `data:image/png;base64,${imageData}`;
+                console.log('✅ Image generated via Imagen 3');
                 return res.status(200).json({ imageUrl: base64Image });
             }
         }
@@ -73,7 +110,6 @@ Scene to illustrate: ${prompt}`
 
     } catch (error: any) {
         console.error('Image generation error:', error);
-        // Always return a fallback
         const seed = Date.now();
         return res.status(200).json({
             imageUrl: `https://picsum.photos/seed/${seed}/1920/1080`,
