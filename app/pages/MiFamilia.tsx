@@ -191,12 +191,12 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                     console.error("❌ [MiFamilia] Error fetching wisdom:", e);
                 }
 
-                // 4. Fetch Daily Entries (Historias)
+                // 4. Fetch Daily Reflections (CORRECTED COLLECTION NAME)
                 try {
-                    const dailyRef = collection(db, `users/${userId}/daily_entries`);
-                    console.log(`📂 [MiFamilia] Querying daily entries at: users/${userId}/daily_entries`);
+                    const dailyRef = collection(db, `users/${userId}/daily_reflections`); // Fixed: daily_entries -> daily_reflections
+                    console.log(`📂 [MiFamilia] Querying daily reflections at: users/${userId}/daily_reflections`);
                     const dailySnapshot = await getDocs(query(dailyRef));
-                    console.log(`✅ [MiFamilia] Found ${dailySnapshot.size} daily entries`);
+                    console.log(`✅ [MiFamilia] Found ${dailySnapshot.size} daily reflections`);
 
                     dailySnapshot.forEach(doc => {
                         const data = doc.data();
@@ -206,12 +206,12 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                             title: data.highlight || 'Historia del día',
                             preview: data.summary || 'Sin resumen',
                             author: currentUserAuthor,
-                            date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Reciente',
+                            date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
                             likes: Math.floor(Math.random() * 20) + 1
                         });
                     });
                 } catch (e) {
-                    console.error("❌ [MiFamilia] Error fetching daily entries:", e);
+                    console.error("❌ [MiFamilia] Error fetching daily reflections:", e);
                 }
 
                 console.log("🏁 [MiFamilia] Total real items loaded:", items.length);
@@ -265,7 +265,29 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
     };
 
     // Extract unique authors from the items actually displayed for the filter
-    const availableAuthors = Array.from(new Map<string, FamilyMember>(legacyItems.map(item => [item.author.id, item.author])).values());
+    const availableAuthorsMap = new Map<string, FamilyMember>();
+
+    // Always add current user if logged in, even if they have no items yet
+    if (auth.currentUser) {
+        availableAuthorsMap.set(auth.currentUser.uid, {
+            id: auth.currentUser.uid,
+            name: 'Tú',
+            relation: 'Creador',
+            avatar: auth.currentUser.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=You',
+            isVoiceCloned: true,
+            storiesCount: 0,
+            recipesCount: 0,
+            wisdomCount: 0
+        });
+    }
+
+    legacyItems.forEach(item => {
+        if (!availableAuthorsMap.has(item.author.id)) {
+            availableAuthorsMap.set(item.author.id, item.author);
+        }
+    });
+
+    const availableAuthors = Array.from(availableAuthorsMap.values());
 
     // Apply all filters
     const filteredItems = legacyItems.filter(item => {
@@ -681,7 +703,7 @@ const FamilyMemberCard: React.FC<{
                     <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg text-white font-medium truncate">{member.name}</h3>
                         {member.isVoiceCloned && (
-                            <span className="px-2 py-0.5 rounded-full bg-canopy-500/20 text-canopy-400 text-[10px] uppercase tracking-wider">
+                            <span className="px-2 py-0.5 rounded-full bg-canopy-500/20 text-canopy-400 text-xs uppercase tracking-wider">
                                 Voz activa
                             </span>
                         )}
