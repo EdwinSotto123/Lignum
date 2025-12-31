@@ -19,22 +19,6 @@ interface LegacyItem {
     image?: string;
 }
 
-interface MiFamiliaProps {
-    familyMembers: FamilyMember[];
-    onSelectMember: (member: FamilyMember) => void;
-}
-
-interface LegacyItem {
-    id: string;
-    type: 'cuento' | 'receta' | 'sabiduria' | 'historia';
-    title: string;
-    preview: string;
-    author: FamilyMember;
-    date: string;
-    likes: number;
-    image?: string;
-}
-
 const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) => {
     const [activeTab, setActiveTab] = useState<'familia' | 'repositorio'>('familia');
     const [filterType, setFilterType] = useState<'all' | 'cuento' | 'receta' | 'sabiduria' | 'historia'>('all');
@@ -109,23 +93,26 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
     ];
 
     useEffect(() => {
-        const fetchRepositoryData = async () => {
-            if (!auth.currentUser) {
+        let unsubscribe: () => void;
+
+        const initFetch = async (user: any) => {
+            if (!user) {
+                console.log("🔒 [MiFamilia] No user logged in. Showing mock data only.");
                 setLegacyItems(mockLegacyItems);
                 return;
             }
 
+            console.log("🔄 [MiFamilia] Fetching repository data for user:", user.uid);
             setLoadingRepository(true);
-            try {
-                const userId = auth.currentUser.uid;
-                const realItems: LegacyItem[] = [];
 
-                // Create a "You" author profile for the real items
+            try {
+                const userId = user.uid;
+                const items: LegacyItem[] = [];
                 const currentUserAuthor: FamilyMember = {
-                    id: 'current-user',
-                    name: 'Tú', // Force "Tú" name for better identification
-                    relation: 'Creador', // Visible relation
-                    avatar: auth.currentUser.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+                    id: user.uid, // Use actual UID for filtering
+                    name: user.displayName || 'Tú',
+                    relation: 'Creador',
+                    avatar: user.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=You',
                     isVoiceCloned: true,
                     storiesCount: 0,
                     recipesCount: 0,
@@ -133,86 +120,127 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
                 };
 
                 // 1. Fetch Stories
-                const storiesRef = collection(db, `users/${userId}/stories`);
-                const storiesSnapshot = await getDocs(query(storiesRef, orderBy('createdAt', 'desc')));
-                storiesSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    realItems.push({
-                        id: doc.id,
-                        type: 'cuento',
-                        title: data.title || 'Cuento sin título',
-                        preview: data.organizedStory?.substring(0, 150) + '...' || 'Sin vista previa',
-                        author: currentUserAuthor,
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                        likes: Math.floor(Math.random() * 20) + 1,
-                        image: data.scenes?.[0]?.imageUrl || undefined
+                try {
+                    const storiesRef = collection(db, `users/${userId}/stories`);
+                    console.log(`📂 [MiFamilia] Querying stories at: users/${userId}/stories`);
+                    const storiesSnapshot = await getDocs(query(storiesRef, orderBy('createdAt', 'desc')));
+                    console.log(`✅ [MiFamilia] Found ${storiesSnapshot.size} stories`);
+
+                    storiesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        console.log("  - Story:", data.title); // Log each story title found
+                        items.push({
+                            id: doc.id,
+                            type: 'cuento',
+                            title: data.title || 'Cuento sin título',
+                            preview: data.organizedStory?.substring(0, 150) + '...' || 'Sin vista previa',
+                            author: currentUserAuthor,
+                            date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
+                            likes: Math.floor(Math.random() * 20) + 1,
+                            image: data.scenes?.[0]?.imageUrl || data.characterImageUrl || undefined
+                        });
                     });
-                });
+                } catch (e) {
+                    console.error("❌ [MiFamilia] Error fetching stories:", e);
+                }
 
                 // 2. Fetch Recipes
-                const recipesRef = collection(db, `users/${userId}/recipes`);
-                const recipesSnapshot = await getDocs(query(recipesRef, orderBy('createdAt', 'desc')));
-                recipesSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    realItems.push({
-                        id: doc.id,
-                        type: 'receta',
-                        title: data.title || 'Receta sin título',
-                        preview: data.description?.substring(0, 150) + '...' || 'Sin descripción',
-                        author: currentUserAuthor,
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                        likes: Math.floor(Math.random() * 20) + 1
+                try {
+                    const recipesRef = collection(db, `users/${userId}/recipes`);
+                    console.log(`📂 [MiFamilia] Querying recipes at: users/${userId}/recipes`);
+                    // Removing orderBy temporarily to check if it's an index issue
+                    const recipesSnapshot = await getDocs(query(recipesRef));
+                    console.log(`✅ [MiFamilia] Found ${recipesSnapshot.size} recipes`);
+
+                    recipesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        items.push({
+                            id: doc.id,
+                            type: 'receta',
+                            title: data.title || 'Receta sin título',
+                            preview: data.description?.substring(0, 150) + '...' || 'Sin descripción',
+                            author: currentUserAuthor,
+                            date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
+                            likes: Math.floor(Math.random() * 20) + 1
+                        });
                     });
-                });
+                } catch (e) {
+                    console.error("❌ [MiFamilia] Error fetching recipes:", e);
+                }
 
                 // 3. Fetch Wisdom
-                const wisdomRef = collection(db, `users/${userId}/wisdom`);
-                const wisdomSnapshot = await getDocs(query(wisdomRef, orderBy('createdAt', 'desc')));
-                wisdomSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    realItems.push({
-                        id: doc.id,
-                        type: 'sabiduria',
-                        title: data.topic || 'Sabiduría compartida',
-                        preview: data.scenarios?.join(' ')?.substring(0, 150) + '...' || 'Sin contenido',
-                        author: currentUserAuthor,
-                        date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
-                        likes: Math.floor(Math.random() * 20) + 1
+                try {
+                    const wisdomRef = collection(db, `users/${userId}/wisdom`);
+                    console.log(`📂 [MiFamilia] Querying wisdom at: users/${userId}/wisdom`);
+                    const wisdomSnapshot = await getDocs(query(wisdomRef));
+                    console.log(`✅ [MiFamilia] Found ${wisdomSnapshot.size} wisdom entries`);
+
+                    wisdomSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        items.push({
+                            id: doc.id,
+                            type: 'sabiduria',
+                            title: data.topic || 'Sabiduría compartida',
+                            preview: data.scenarios?.join(' ')?.substring(0, 150) + '...' || 'Sin contenido',
+                            author: currentUserAuthor,
+                            date: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : 'Reciente',
+                            likes: Math.floor(Math.random() * 20) + 1
+                        });
                     });
-                });
+                } catch (e) {
+                    console.error("❌ [MiFamilia] Error fetching wisdom:", e);
+                }
 
                 // 4. Fetch Daily Entries (Historias)
-                const dailyRef = collection(db, `users/${userId}/daily_entries`);
-                // Note: 'timestamp' might be used instead of 'createdAt' for daily entries
-                const dailySnapshot = await getDocs(query(dailyRef, orderBy('timestamp', 'desc')));
-                dailySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    realItems.push({
-                        id: doc.id,
-                        type: 'historia',
-                        title: data.highlight || 'Historia del día',
-                        preview: data.summary || 'Sin resumen',
-                        author: currentUserAuthor,
-                        date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Reciente',
-                        likes: Math.floor(Math.random() * 20) + 1
+                try {
+                    const dailyRef = collection(db, `users/${userId}/daily_entries`);
+                    console.log(`📂 [MiFamilia] Querying daily entries at: users/${userId}/daily_entries`);
+                    const dailySnapshot = await getDocs(query(dailyRef));
+                    console.log(`✅ [MiFamilia] Found ${dailySnapshot.size} daily entries`);
+
+                    dailySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        items.push({
+                            id: doc.id,
+                            type: 'historia',
+                            title: data.highlight || 'Historia del día',
+                            preview: data.summary || 'Sin resumen',
+                            author: currentUserAuthor,
+                            date: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString() : 'Reciente',
+                            likes: Math.floor(Math.random() * 20) + 1
+                        });
                     });
-                });
+                } catch (e) {
+                    console.error("❌ [MiFamilia] Error fetching daily entries:", e);
+                }
+
+                console.log("🏁 [MiFamilia] Total real items loaded:", items.length);
 
                 // Combine Mock + Real items
-                // We put real items first
-                setLegacyItems([...realItems, ...mockLegacyItems]);
+                setLegacyItems([...items, ...mockLegacyItems]);
 
             } catch (error) {
-                console.error("Error fetching repository:", error);
-                // Even on error, show mock items so it's not empty
+                console.error("❌ [MiFamilia] Critical error in fetchRepositoryData:", error);
                 setLegacyItems(mockLegacyItems);
             } finally {
                 setLoadingRepository(false);
             }
         };
 
-        if (activeTab === 'repositorio') {
-            fetchRepositoryData();
+        // Listen for auth state changes to ensure we have the user
+        unsubscribe = auth.onAuthStateChanged((user) => {
+            if (activeTab === 'repositorio') {
+                initFetch(user);
+            }
+        });
+
+        // Trigger immediately if already logged in (for tab switches)
+        if (activeTab === 'repositorio' && auth.currentUser) {
+            initFetch(auth.currentUser);
+        }
+
+        return () => {
+            if (unsubscribe) unsubscribe();
         }
     }, [activeTab]);
 
@@ -237,7 +265,7 @@ const MiFamilia: React.FC<MiFamiliaProps> = ({ familyMembers, onSelectMember }) 
     };
 
     // Extract unique authors from the items actually displayed for the filter
-    const availableAuthors = Array.from(new Map(legacyItems.map(item => [item.author.id, item.author])).values());
+    const availableAuthors = Array.from(new Map<string, FamilyMember>(legacyItems.map(item => [item.author.id, item.author])).values());
 
     // Apply all filters
     const filteredItems = legacyItems.filter(item => {
